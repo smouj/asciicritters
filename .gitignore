@@ -51,5 +51,11 @@ worklog.md
 download/
 
 server.log
+
+# Internal deployment scripts (not for public repo)
+.zscripts/
+Caddyfile
+
 # Skills directory
 /skills/
+examples/
