@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Pet {
+  id        String   @id @default(cuid())
+  userId    String   @default("default-user")
+  name      String
+  species   String
+  asciiArt  String
+  rarity    Int      @default(1)
+  hunger    Int      @default(50)
+  happiness Int      @default(50)
+  energy    Int      @default(50)
+  health    Int      @default(50)
+  level     Int      @default(1)
+  xp        Int      @default(0)
+  mood      String   @default("neutral")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  actions   PetAction[]
+}
+
+model PetAction {
+  id        String   @id @default(cuid())
+  petId     String
+  pet       Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  action    String
+  message   String
+  createdAt DateTime @default(now())
+}
