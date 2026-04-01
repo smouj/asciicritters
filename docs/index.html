@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCIICritters — The Ultimate 3D Virtual Pet Creator</title>
+<meta name="description" content="ASCII art pets rendered in stunning 3D with bloom post-processing, AI chat, and cinematic effects.">
+<meta property="og:title" content="ASCIICritters — 3D Virtual Pet Creator">
+<meta property="og:description" content="Adopt unique ASCII creatures rendered in stunning 3D. Chat with your pet, train it, and watch it come alive.">
+<meta property="og:image" content="https://raw.githubusercontent.com/smouj/asciicritters/main/public/og-image.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="https://z-cdn.chatglm.cn/z-ai/static/logo.svg">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a0f;--bg2:#0b0b10;--bg3:#0c0c12;--bg4:#0e0e14;
+  --border:rgba(255,255,255,0.06);--border-h:rgba(255,255,255,0.12);
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#475569;
+  --green:#10b981;--green2:#34d399;--amber:#f59e0b;--red:#ef4444;
+  --emerald-400:#34d399;--emerald-500:#10b981;--emerald-600:#059669;
+  --phoenix:#fb923c;--phoenix-glow:#f97316;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.4;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:1px}
+
+/* ─── Layout ─── */
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* ─── Header ─── */
+.header{display:flex;align-items:center;justify-content:space-between;height:44px;padding:0 16px;border-bottom:1px solid var(--border);background:var(--bg3);flex-shrink:0;position:relative;z-index:10}
+.header-left{display:flex;align-items:center;gap:10px}
+.logo-icon{width:20px;height:20px;color:var(--emerald-400);animation:wiggle 3s ease-in-out infinite}
+@keyframes wiggle{0%,80%,100%{transform:rotate(0)}85%{transform:rotate(8deg)}90%{transform:rotate(-8deg)}95%{transform:rotate(4deg)}}
+.logo-text{font-size:15px;font-weight:700;letter-spacing:-0.02em}
+.logo-text span:first-child{color:var(--emerald-400)}
+.logo-text span:last-child{color:rgba(255,255,255,0.65)}
+.logo-sub{font-size:10px;color:var(--text3);margin-left:8px;opacity:.7}
+.header-stats{display:flex;align-items:center;gap:10px}
+.stat-pill{display:flex;align-items:center;gap:4px;font-size:10px;font-family:'JetBrains Mono',monospace}
+.stat-pill .icon{width:12px;height:12px}
+.stat-pill.tokens{color:rgba(251,191,36,0.7)}
+.stat-pill.actions{color:rgba(52,211,153,0.7)}
+.stat-pill.pets{color:rgba(255,255,255,0.4)}
+
+.adopt-btn{height:28px;padding:0 10px;font-size:11px;font-weight:600;background:rgba(16,185,129,0.85);color:#fff;border:none;border-radius:1px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:background .15s}
+.adopt-btn:hover{background:var(--emerald-500)}
+.adopt-btn svg{width:14px;height:14px}
+
+/* ─── Main Layout ─── */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* ─── Left Sidebar ─── */
+.sidebar-left{width:200px;flex-shrink:0;border-right:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column}
+.sidebar-title{padding:8px 12px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:.08em}
+.pet-list{flex:1;overflow-y:auto;padding:0 8px 8px}
+.pet-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:1px;cursor:pointer;transition:background .1s;margin-bottom:2px;border:1px solid transparent}
+.pet-item:hover{background:rgba(255,255,255,0.02)}
+.pet-item.active{background:rgba(255,255,255,0.05);border-color:rgba(16,185,129,0.25)}
+.pet-avatar{width:28px;height:28px;border-radius:1px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.pet-info{flex:1;min-width:0}
+.pet-name{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pet-meta{font-size:9px;color:var(--text3);display:flex;align-items:center;gap:4px}
+.rarity-dot{font-weight:700;font-size:9px}
+.pet-delete{opacity:0;padding:2px;border:none;background:none;color:var(--text3);cursor:pointer;border-radius:1px;transition:all .15s}
+.pet-item:hover .pet-delete{opacity:.6}
+.pet-delete:hover{opacity:1!important;color:var(--red)}
+
+.stats-panel{padding:8px 12px;border-top:1px solid var(--border)}
+.stat-row{margin-bottom:6px}
+.stat-row:last-child{margin-bottom:0}
+.stat-label{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.stat-label span{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px}
+.stat-label .val{font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:500}
+.stat-bar{height:4px;border-radius:1px;background:rgba(255,255,255,0.04);overflow:hidden}
+.stat-bar-fill{height:100%;border-radius:1px;transition:width 1s cubic-bezier(.25,.46,.45,.94)}
+
+/* ─── Center Canvas ─── */
+.center{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.canvas-wrap{flex:1;position:relative;background:#08080c}
+.canvas-wrap canvas{display:block;width:100%;height:100%}
+
+/* Overlay info */
+.overlay-top{position:absolute;top:12px;left:16px;right:16px;display:flex;align-items:flex-start;justify-content:space-between;pointer-events:none;z-index:2}
+.pet-header h2{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.rarity-badge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:1px}
+.pet-header .species{font-size:11px;color:var(--text3);margin-top:2px;display:flex;align-items:center;gap:6px}
+.mood-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 6px;border-radius:1px;font-weight:500}
+.mood-emoji{animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+.level-info{display:flex;align-items:center;gap:6px;text-align:right}
+.level-info .trophy{width:12px;height:12px;color:var(--amber)}
+.level-info .lv{font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:700}
+.xp-bar{width:56px;height:3px;border-radius:1px;background:rgba(255,255,255,0.04)}
+.xp-bar-fill{height:100%;border-radius:1px;background:rgba(245,158,11,0.6);transition:width .5s}
+
+.overlay-bottom{position:absolute;bottom:12px;left:16px;font-size:9px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,0.15);pointer-events:none;z-index:2}
+
+/* ─── Bottom Panel ─── */
+.bottom-panel{height:250px;flex-shrink:0;border-top:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column}
+.tabs{display:flex;align-items:center;height:36px;padding:0 12px;border-bottom:1px solid var(--border)}
+.tab{display:flex;align-items:center;gap:4px;padding:0 12px;height:100%;font-size:11px;font-weight:500;color:rgba(255,255,255,0.25);border-bottom:2px solid transparent;cursor:pointer;transition:all .15s;margin-bottom:-1px;background:none;border-top:none;border-left:none;border-right:none}
+.tab:hover{color:rgba(255,255,255,0.45)}
+.tab.active{color:var(--emerald-400);border-bottom-color:rgba(52,211,153,0.5)}
+.tab svg{width:12px;height:12px}
+.tab-content{flex:1;overflow:hidden}
+.tab-pane{height:100%;display:none}
+.tab-pane.active{display:flex;flex-direction:column}
+
+/* Actions grid */
+.actions-grid{flex:1;display:flex;align-items:center;justify-content:center;padding:12px 16px}
+.actions-btns{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:100%;max-width:480px}
+.action-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border:1px solid rgba(255,255,255,0.06);border-radius:1px;background:none;color:var(--text);cursor:pointer;transition:all .15s}
+.action-btn:hover{border-color:rgba(255,255,255,0.12);background:rgba(255,255,255,0.02)}
+.action-btn:active{transform:scale(0.94);background:rgba(255,255,255,0.04)}
+.action-btn .emoji{font-size:18px}
+.action-btn .lbl{font-size:9px;font-weight:500;color:rgba(255,255,255,0.55)}
+.action-btn .cost{font-size:8px;font-family:'JetBrains Mono',monospace}
+.action-bar{flex-shrink:0;padding:8px 16px;border-top:1px solid rgba(255,255,255,0.03);display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.15)}
+.action-bar .energy{font-family:'JetBrains Mono',monospace}
+
+/* Chat pane */
+.chat-messages{flex:1;overflow-y:auto;padding:8px 16px;display:flex;flex-direction:column;gap:8px}
+.chat-empty{text-align:center;padding:32px 0;color:rgba(255,255,255,0.12)}
+.chat-empty svg{width:20px;height:20px;margin:0 auto 8px;opacity:.4}
+.chat-empty p{font-size:10px}
+.chat-bubble{max-width:85%;padding:6px 10px;font-size:11px;line-height:1.5;border-radius:1px}
+.chat-bubble.user{align-self:flex-end;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.75);border-radius:1px 1px 1px 4px}
+.chat-bubble.pet{align-self:flex-start}
+.chat-input-wrap{flex-shrink:0;padding:8px 12px;border-top:1px solid var(--border);display:flex;gap:8px}
+.chat-input{flex:1;height:32px;padding:0 10px;font-size:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:1px;color:var(--text);outline:none;font-family:inherit}
+.chat-input:focus{border-color:rgba(16,185,129,0.35)}
+.chat-input::placeholder{color:rgba(255,255,255,0.12)}
+.chat-send{width:32px;height:32px;padding:0;background:rgba(16,185,129,0.75);border:none;border-radius:1px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.chat-send:hover{background:var(--emerald-500)}
+.chat-send svg{width:14px;height:14px}
+.chat-hint{display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.12);margin-top:4px}
+.chat-hint .tok{font-family:'JetBrains Mono',monospace}
+
+/* ─── Right Sidebar ─── */
+.sidebar-right{width:180px;flex-shrink:0;border-left:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column}
+.sidebar-right .sidebar-title{padding:8px 12px}
+.info-scroll{flex:1;overflow-y:auto;padding:0 10px 10px}
+.info-card{border:1px solid var(--border);border-radius:1px;padding:8px;background:rgba(255,255,255,0.01);margin-bottom:8px}
+.info-card-label{font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:4px}
+.info-card-value{font-size:11px;font-weight:600}
+.info-card-desc{font-size:9px;color:rgba(255,255,255,0.25);margin-top:2px;line-height:1.4}
+.info-card-row{display:flex;align-items:center;justify-content:space-between;font-size:9px;margin-top:6px}
+.info-card-row .label{color:rgba(255,255,255,0.25);display:flex;align-items:center;gap:4px}
+.info-card-row .label svg{width:10px;height:10px}
+.info-card-row .val{font-family:'JetBrains Mono',monospace}
+
+/* ─── Demo Banner ─── */
+.demo-banner{position:fixed;top:0;left:0;right:0;z-index:100;background:linear-gradient(90deg,rgba(16,185,129,0.9),rgba(6,182,212,0.9));color:#fff;text-align:center;padding:6px;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.demo-banner a{color:#fff;text-decoration:underline;font-weight:700}
+.demo-banner + .app{height:calc(100vh - 32px)}
+
+/* ─── Toast ─── */
+.toast{position:fixed;bottom:24px;right:24px;z-index:200;background:var(--bg4);border:1px solid var(--border);border-radius:1px;padding:10px 16px;font-size:12px;color:var(--text);box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(20px);opacity:0;transition:all .3s cubic-bezier(.25,.46,.45,.94);pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* ─── Responsive ─── */
+@media(max-width:900px){
+  .sidebar-right{display:none}
+}
+@media(max-width:700px){
+  .sidebar-left{width:56px}
+  .pet-info,.pet-delete,.stats-panel,.sidebar-title,.header-stats,.logo-sub{display:none}
+  .pet-item{justify-content:center;padding:6px 4px}
+  .actions-btns{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- Demo Banner -->
+<div class="demo-banner">
+  🐾 Esta es una <strong>demo estática</strong> — Para la app completa con IA, visita el repositorio: <a href="https://github.com/smouj/asciicritters" target="_blank">smouj/asciicritters</a>
+</div>
+
+<div class="app">
+  <!-- ═══ Header ═══ -->
+  <header class="header">
+    <div class="header-left">
+      <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c-4 4-8 6-8 12a8 8 0 0 0 16 0c0-6-4-8-8-12Z"/></svg>
+      <div>
+        <div class="logo-text"><span>ASCII</span><span>Critters</span></div>
+        <span class="logo-sub">3D Virtual Pets</span>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="stat-pill tokens">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg>
+        <span id="tokenCount">0 tokens</span>
+      </div>
+      <div class="stat-pill actions">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span id="actionCount">0 actions</span>
+      </div>
+      <div class="stat-pill pets">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c-4 4-8 6-8 12a8 8 0 0 0 16 0c0-6-4-8-8-12Z"/></svg>
+        <span>3/10</span>
+      </div>
+      <button class="adopt-btn" onclick="showToast('🐾 In the full app, this opens the adoption dialog!')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        Adopt
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══ Main Layout ═══ -->
+  <div class="main">
+
+    <!-- ─── Left Sidebar ─── -->
+    <aside class="sidebar-left">
+      <div class="sidebar-title">Companions</div>
+      <div class="pet-list">
+        <div class="pet-item active" onclick="selectPet(0)">
+          <div class="pet-avatar" style="background:rgba(251,146,60,0.15);color:#fb923c">I</div>
+          <div class="pet-info">
+            <div class="pet-name">Ignis <span class="rarity-dot" style="color:#fbbf24">★</span></div>
+            <div class="pet-meta"><span>Phoenix</span>·<span>Lv.7</span></div>
+          </div>
+        </div>
+        <div class="pet-item" onclick="selectPet(1)">
+          <div class="pet-avatar" style="background:rgba(251,146,60,0.12);color:#fb923c">S</div>
+          <div class="pet-info">
+            <div class="pet-name">Sparky</div>
+            <div class="pet-meta"><span>Dragon</span>·<span>Lv.4</span></div>
+          </div>
+        </div>
+        <div class="pet-item" onclick="selectPet(2)">
+          <div class="pet-avatar" style="background:rgba(251,191,36,0.12);color:#fbbf24">L</div>
+          <div class="pet-info">
+            <div class="pet-name">Luna</div>
+            <div class="pet-meta"><span>Neko</span>·<span>Lv.2</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="stats-panel" id="statsPanel">
+        <div class="stat-row">
+          <div class="stat-label"><span>🍖 Hunger</span><span class="val" style="color:#f97316" id="hungerVal">72</span></div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="hungerBar" style="width:72%;background:#f97316"></div></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-label"><span>⚡ Energy</span><span class="val" style="color:#eab308" id="energyVal">85</span></div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="energyBar" style="width:85%;background:#eab308"></div></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-label"><span>😊 Happiness</span><span class="val" style="color:#22c55e" id="happyVal">68</span></div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="happyBar" style="width:68%;background:#22c55e"></div></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-label"><span>❤️ Health</span><span class="val" style="color:#ef4444" id="healthVal">91</span></div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="healthBar" style="width:91%;background:#ef4444"></div></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ─── Center: Canvas ─── -->
+    <main class="center">
+      <div class="canvas-wrap">
+        <canvas id="petCanvas"></canvas>
+      </div>
+      <div class="overlay-top">
+        <div class="pet-header">
+          <h2 id="petName">Ignis <span class="rarity-badge" id="rarityBadge" style="color:#fbbf24;background:rgba(251,191,36,0.15)">Legendary</span></h2>
+          <div class="species">
+            <span id="speciesName">Phoenix</span>
+            <span class="mood-badge" id="moodBadge" style="color:#fbbf24;background:rgba(251,191,36,0.1)">
+              <span class="mood-emoji" id="moodEmoji">✨</span>
+              <span id="moodLabel">Ecstatic</span>
+            </span>
+          </div>
+        </div>
+        <div class="level-info">
+          <svg class="trophy" viewBox="0 0 24 24" fill="#f59e0b" stroke="none"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 22V2h4v20" fill="none" stroke="#f59e0b" stroke-width="1.5"/><path d="M8 2h8v6H8z"/></svg>
+          <span class="lv">Lv.<span id="petLevel">7</span></span>
+          <div class="xp-bar"><div class="xp-bar-fill" id="xpBar" style="width:60%"></div></div>
+        </div>
+      </div>
+      <div class="overlay-bottom">
+        Total XP: <span id="totalXp">320</span> · Actions: <span class="act-count">0</span> · Tokens: <span class="tok-count">0</span>
+      </div>
+
+      <!-- Bottom Panel -->
+      <div class="bottom-panel">
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab('actions',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Actions
+          </button>
+          <button class="tab" onclick="switchTab('chat',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Chat
+          </button>
+        </div>
+        <div class="tab-content">
+          <!-- Actions -->
+          <div class="tab-pane active" id="pane-actions">
+            <div class="actions-grid">
+              <div class="actions-btns">
+                <button class="action-btn" onclick="doAction('feed','🍖','Ignis devoured the treats with blazing enthusiasm!',5)">
+                  <span class="emoji">🍖</span><span class="lbl">Feed</span><span class="cost" style="color:#f97316">5 tok</span>
+                </button>
+                <button class="action-btn" onclick="doAction('play','🎮','Ignis soared through the sky in a playful spiral!',8)">
+                  <span class="emoji">🎮</span><span class="lbl">Play</span><span class="cost" style="color:#22c55e">8 tok</span>
+                </button>
+                <button class="action-btn" onclick="doAction('train','💪','Ignis trained fiercely, flames intensifying!',12)">
+                  <span class="emoji">💪</span><span class="lbl">Train</span><span class="cost" style="color:#a855f7">12 tok</span>
+                </button>
+                <button class="action-btn" onclick="doAction('heal','💊','A healing aura restored Ignis\'s vitality!',6)">
+                  <span class="emoji">💊</span><span class="lbl">Heal</span><span class="cost" style="color:#ef4444">6 tok</span>
+                </button>
+                <button class="action-btn" onclick="doAction('rest','😴','Ignis curled into embers and rested peacefully.',4)">
+                  <span class="emoji">😴</span><span class="lbl">Rest</span><span class="cost" style="color:#6366f1">4 tok</span>
+                </button>
+                <button class="action-btn" onclick="doAction('pet','🤗','Ignis nuzzled against your hand, warm and gentle.',3)">
+                  <span class="emoji">🤗</span><span class="lbl">Pet</span><span class="cost" style="color:#ec4899">3 tok</span>
+                </button>
+              </div>
+            </div>
+            <div class="action-bar">
+              <span>Click an action to interact with <span id="actionPetName">Ignis</span></span>
+              <span class="energy">Energy: <span id="energyVal2">85</span>/100</span>
+            </div>
+          </div>
+          <!-- Chat -->
+          <div class="tab-pane" id="pane-chat">
+            <div class="chat-messages" id="chatMessages">
+              <div class="chat-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <p>Talk to <span id="chatPetName">Ignis</span> — it responds based on its personality and mood!</p>
+              </div>
+            </div>
+            <div class="chat-input-wrap">
+              <input class="chat-input" id="chatInput" placeholder="Talk to Ignis..." onkeydown="if(event.key==='Enter')sendChat()">
+              <button class="chat-send" onclick="sendChat()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
+              </button>
+            </div>
+            <div class="chat-hint">
+              <span><span id="chatPetHint">Ignis</span> responds based on its mood and personality</span>
+              <span class="tok">~2 tok/msg</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ─── Right Sidebar ─── -->
+    <aside class="sidebar-right">
+      <div class="sidebar-title">Details</div>
+      <div class="info-scroll">
+        <div class="info-card">
+          <div class="info-card-label">Species</div>
+          <div class="info-card-value" id="infoSpecies" style="color:#fb923c">Phoenix</div>
+          <div class="info-card-desc" id="infoDesc">A blazing bird of eternal rebirth. Its flames never dim.</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-label">Progression</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b" stroke="none"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 22V2h4v20" fill="none" stroke="#f59e0b" stroke-width="1.5"/><path d="M8 2h8v6H8z"/></svg>
+            <span style="font-size:14px;font-weight:700;font-family:'JetBrains Mono',monospace" id="infoLevel">7</span>
+            <div class="xp-bar" style="flex:1"><div class="xp-bar-fill" id="infoXpBar" style="width:60%"></div></div>
+            <span style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text3)" id="infoXpText">30/50</span>
+          </div>
+          <div class="info-card-desc" id="infoLevelHint">Next level in 20 XP</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-label">Rarity</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span class="info-card-value" id="infoRarity" style="color:#fbbf24">Legendary</span>
+            <span style="font-size:9px;color:var(--text3)" id="infoRarityNum">(5/5)</span>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-label">Session</div>
+          <div class="info-card-row">
+            <span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;color:rgba(251,191,36,0.6)"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/></svg> Tokens</span>
+            <span class="val" style="color:rgba(251,191,36,0.7)" id="infoTokens">0</span>
+          </div>
+          <div class="info-card-row">
+            <span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;color:rgba(52,211,153,0.6)"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Actions</span>
+            <span class="val" style="color:rgba(52,211,153,0.7)" id="infoActions">0</span>
+          </div>
+          <div class="info-card-row">
+            <span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;color:rgba(96,165,250,0.6)"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Messages</span>
+            <span class="val" style="color:rgba(96,165,250,0.7)" id="infoMsgs">0</span>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-label">Timeline</div>
+          <div class="info-card-row"><span class="label">Created</span><span style="font-family:'JetBrains Mono',monospace">10 Jul</span></div>
+          <div class="info-card-row"><span class="label">Updated</span><span style="font-family:'JetBrains Mono',monospace" id="infoTime">--:--</span></div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Three.js from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════
+//  DEMO DATA
+// ═══════════════════════════════════════════
+const PETS = [
+  {
+    name: 'Ignis', species: 'Phoenix', rarity: 5,
+    rarityLabel: 'Legendary', rarityColor: '#fbbf24', rarityBg: 'rgba(251,191,36,0.15)',
+    color: '#fb923c', glow: '#f97316', mood: 'ecstatic',
+    moodEmoji: '✨', moodLabel: 'Ecstatic', moodColor: '#fbbf24', moodBg: 'rgba(251,191,36,0.1)',
+    desc: 'A blazing bird of eternal rebirth. Its flames never dim.',
+    personality: 'wise, poetic, slightly dramatic',
+    level: 7, xp: 320, xpMod: 20,
+    hunger: 72, energy: 85, happiness: 68, health: 91,
+    asciiArt: [
+      '         __          __',
+      '        /  \\        /  \\',
+      '       / .. \\      / .. \\',
+      '      /  /\\  \\    /  /\\  \\',
+      '     /  /  \\  \\  /  /  \\  \\',
+      '    /  /    \\  \\/  /    \\  \\',
+      '   /  /  /\\   \\    /\\   \\  \\',
+      '  /  /  /  \\       /  \\   \\  \\',
+      ' /__/__/____\\_____/____\\___\\',
+      '     \\    \\  |  |  /    /',
+      '      \\____\\ |  | /____/',
+      '            \\|  |/',
+      '             |  |',
+      '            _|  |_',
+    ],
+    chatResponses: [
+      "The flames within me dance with joy at your presence, dear friend. ✨",
+      "I am Ignis, born from eternal fire. Every conversation warms my feathers.",
+      "In the language of flames, your words are a gentle ember that never fades.",
+      "The stars whisper to me that you are a kind soul. I believe them.",
+      "My wings carry the warmth of a thousand suns, yet your kindness warms me more.",
+    ],
+  },
+  {
+    name: 'Sparky', species: 'Dragon', rarity: 4,
+    rarityLabel: 'Epic', rarityColor: '#c084fc', rarityBg: 'rgba(192,132,252,0.1)',
+    color: '#f87171', glow: '#ef4444', mood: 'happy',
+    moodEmoji: '😊', moodLabel: 'Happy', moodColor: '#34d399', moodBg: 'rgba(52,211,153,0.1)',
+    desc: 'An ancient wyrm of immense power and wisdom.',
+    personality: 'proud, protective',
+    level: 4, xp: 170, xpMod: 20,
+    hunger: 55, energy: 60, happiness: 75, health: 80,
+    asciiArt: [
+      '              __====-_  _-====__',
+      '         _--^^^#####//      \\\\#####^^^--_',
+      '      _-^##########// (    ) \\\\##########^-_',
+      '    -############//  |\\^^/|  \\\\############-',
+      '   /############//   (@::@)   \\\\############\\',
+      '  /#############((     \\\\//     ))#############\\',
+      ' /###############\\\\    (oo)    //###############\\',
+    ],
+    chatResponses: [
+      "*grrrn* I am Sparky, guardian of the ancient flame. State your purpose.",
+      "Your loyalty honors me, human. I shall protect you with my scales.",
+      "In dragon years, I am but a hatchling. Yet my fire burns bright.",
+      "The mountains tremble at my roar... or perhaps that was just my stomach.",
+    ],
+  },
+  {
+    name: 'Luna', species: 'Neko', rarity: 1,
+    rarityLabel: 'Common', rarityColor: '#9ca3af', rarityBg: 'rgba(156,163,175,0.1)',
+    color: '#fbbf24', glow: '#f59e0b', mood: 'neutral',
+    moodEmoji: '😐', moodLabel: 'Neutral', moodColor: '#9ca3af', moodBg: 'rgba(156,163,175,0.1)',
+    desc: 'A mysterious feline companion with glowing eyes.',
+    personality: 'playful, curious, sassy',
+    level: 2, xp: 80, xpMod: 30,
+    hunger: 45, energy: 50, happiness: 55, health: 65,
+    asciiArt: [
+      '    /\\_/\\',
+      '   ( o.o )',
+      '    > ^ <',
+      '   /|   |\\',
+      '  (_|   |_)',
+      '    "   "',
+    ],
+    chatResponses: [
+      "Mrrrow? Oh, you're talking to me? *stretches lazily*",
+      "I was napping, but I suppose I can chat for a bit. Maybe.",
+      "*knocks something off the table* That was... intentional.",
+      "Feed me and maybe I'll purr. No promises though.",
+      "My name is Luna and I am very important. Don't forget that.",
+    ],
+  },
+];
+
+let currentPetIdx = 0;
+let sessionTokens = 0;
+let sessionActions = 0;
+let sessionMsgs = 0;
+let actionPulse = 0;
+
+function getPet() { return PETS[currentPetIdx]; }
+
+// ═══════════════════════════════════════════
+//  UI UPDATES
+// ═══════════════════════════════════════════
+function updateUI() {
+  const p = getPet();
+  document.getElementById('petName').innerHTML = p.name + ' <span class="rarity-badge" style="color:'+p.rarityColor+';background:'+p.rarityBg+'">'+p.rarityLabel+'</span>';
+  document.getElementById('speciesName').textContent = p.species;
+  document.getElementById('moodBadge').style.color = p.moodColor;
+  document.getElementById('moodBadge').style.background = p.moodBg;
+  document.getElementById('moodEmoji').textContent = p.moodEmoji;
+  document.getElementById('moodLabel').textContent = p.moodLabel;
+  document.getElementById('petLevel').textContent = p.level;
+  document.getElementById('totalXp').textContent = p.xp;
+  document.getElementById('xpBar').style.width = (p.xpMod/50*100)+'%';
+  document.getElementById('actionPetName').textContent = p.name;
+  document.getElementById('chatPetName').textContent = p.name;
+  document.getElementById('chatPetHint').textContent = p.name;
+  document.getElementById('chatInput').placeholder = 'Talk to ' + p.name + '...';
+  document.getElementById('energyVal2').textContent = p.energy;
+
+  // Stats
+  document.getElementById('hungerVal').textContent = p.hunger;
+  document.getElementById('hungerBar').style.width = p.hunger + '%';
+  document.getElementById('hungerBar').style.background = p.hunger < 25 ? '#f87171' : '#f97316';
+  document.getElementById('energyVal').textContent = p.energy;
+  document.getElementById('energyBar').style.width = p.energy + '%';
+  document.getElementById('energyBar').style.background = p.energy < 25 ? '#f87171' : '#eab308';
+  document.getElementById('happyVal').textContent = p.happiness;
+  document.getElementById('happyBar').style.width = p.happiness + '%';
+  document.getElementById('happyBar').style.background = p.happiness < 25 ? '#f87171' : '#22c55e';
+  document.getElementById('healthVal').textContent = p.health;
+  document.getElementById('healthBar').style.width = p.health + '%';
+  document.getElementById('healthBar').style.background = p.health < 25 ? '#f87171' : '#ef4444';
+
+  // Right sidebar
+  document.getElementById('infoSpecies').textContent = p.species;
+  document.getElementById('infoSpecies').style.color = p.color;
+  document.getElementById('infoDesc').textContent = p.desc;
+  document.getElementById('infoLevel').textContent = p.level;
+  document.getElementById('infoXpBar').style.width = (p.xpMod/50*100)+'%';
+  document.getElementById('infoXpText').textContent = p.xpMod + '/50';
+  document.getElementById('infoLevelHint').textContent = 'Next level in ' + (50 - p.xpMod) + ' XP';
+  document.getElementById('infoRarity').textContent = p.rarityLabel;
+  document.getElementById('infoRarity').style.color = p.rarityColor;
+  document.getElementById('infoRarityNum').textContent = '(' + p.rarity + '/5)';
+  document.getElementById('infoTime').textContent = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+
+  // Pet list
+  document.querySelectorAll('.pet-item').forEach((el,i) => {
+    el.classList.toggle('active', i === currentPetIdx);
+  });
+}
+
+function updateSessionStats() {
+  document.getElementById('tokenCount').textContent = sessionTokens + ' tokens';
+  document.getElementById('actionCount').textContent = sessionActions + ' actions';
+  document.getElementById('infoTokens').textContent = sessionTokens;
+  document.getElementById('infoActions').textContent = sessionActions;
+  document.getElementById('infoMsgs').textContent = sessionMsgs;
+  document.querySelectorAll('.act-count').forEach(el => el.textContent = sessionActions);
+  document.querySelectorAll('.tok-count').forEach(el => el.textContent = sessionTokens);
+}
+
+function selectPet(idx) {
+  currentPetIdx = idx;
+  updateUI();
+  needsTextureUpdate = true;
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('pane-' + name).classList.add('active');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function doAction(action, icon, msg, cost) {
+  sessionTokens += cost;
+  sessionActions++;
+  updateSessionStats();
+  document.getElementById('infoTime').textContent = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+  showToast(icon + ' ' + msg);
+  actionPulse = Date.now();
+
+  // Simulate stat changes
+  const p = getPet();
+  const delta = Math.floor(Math.random()*8)+2;
+  if(action==='feed') p.hunger = Math.min(100, p.hunger + delta);
+  else if(action==='play') { p.happiness = Math.min(100, p.happiness + delta); p.energy = Math.max(0, p.energy - Math.floor(delta*0.6)); }
+  else if(action==='train') { p.xp += 12; p.xpMod = p.xp % 50; p.health = Math.min(100, p.health + Math.floor(delta*0.5)); p.energy = Math.max(0, p.energy - delta); }
+  else if(action==='heal') p.health = Math.min(100, p.health + delta);
+  else if(action==='rest') p.energy = Math.min(100, p.energy + delta);
+  else if(action==='pet') p.happiness = Math.min(100, p.happiness + Math.floor(delta*0.7));
+  updateUI();
+}
+
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if(!msg) return;
+  input.value = '';
+  sessionTokens += 2;
+  sessionMsgs++;
+  updateSessionStats();
+
+  const container = document.getElementById('chatMessages');
+  // Remove empty state
+  const empty = container.querySelector('.chat-empty');
+  if(empty) empty.remove();
+
+  // User bubble
+  const userDiv = document.createElement('div');
+  userDiv.className = 'chat-bubble user';
+  userDiv.textContent = msg;
+  userDiv.style.opacity = '0';
+  userDiv.style.transform = 'translateY(6px)';
+  container.appendChild(userDiv);
+  requestAnimationFrame(() => { userDiv.style.transition = 'all .2s'; userDiv.style.opacity = '1'; userDiv.style.transform = 'translateY(0)'; });
+
+  // Pet response (simulated)
+  setTimeout(() => {
+    const p = getPet();
+    const resp = p.chatResponses[Math.floor(Math.random() * p.chatResponses.length)];
+    const petDiv = document.createElement('div');
+    petDiv.className = 'chat-bubble pet';
+    petDiv.style.color = p.color;
+    petDiv.style.background = p.color + '12';
+    petDiv.style.borderRadius = '1px 1px 1px 4px';
+    petDiv.textContent = resp;
+    petDiv.style.opacity = '0';
+    petDiv.style.transform = 'translateY(6px)';
+    container.appendChild(petDiv);
+    requestAnimationFrame(() => { petDiv.style.transition = 'all .2s'; petDiv.style.opacity = '1'; petDiv.style.transform = 'translateY(0)'; });
+    container.scrollTop = container.scrollHeight;
+  }, 600 + Math.random() * 800);
+
+  container.scrollTop = container.scrollHeight;
+}
+
+// ═══════════════════════════════════════════
+//  THREE.JS 3D ASCII RENDERER
+// ═══════════════════════════════════════════
+let needsTextureUpdate = true;
+
+(function initThree() {
+  const canvas = document.getElementById('petCanvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x06020e);
+  scene.fog = new THREE.FogExp2(0x06020e, 0.06);
+
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+  camera.position.set(0, 0, 4.5);
+
+  // Lights
+  const ambient = new THREE.AmbientLight(0x404040, 0.4);
+  scene.add(ambient);
+
+  const mainLight = new THREE.PointLight(0xff8800, 2.5, 12);
+  mainLight.position.set(0, 2, 4);
+  scene.add(mainLight);
+
+  const blueLight = new THREE.PointLight(0x3b82f6, 0.25, 10);
+  blueLight.position.set(-4, -1, 2);
+  scene.add(blueLight);
+
+  const pinkLight = new THREE.PointLight(0xf43f5e, 0.2, 10);
+  pinkLight.position.set(4, -1, 2);
+  scene.add(pinkLight);
+
+  // Stars
+  const starsGeo = new THREE.BufferGeometry();
+  const starsPositions = [];
+  for (let i = 0; i < 2000; i++) {
+    starsPositions.push((Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80);
+  }
+  starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starsPositions, 3));
+  const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0.6 });
+  scene.add(new THREE.Points(starsGeo, starsMat));
+
+  // Particles
+  const particles = [];
+  const particleGeo = new THREE.OctahedronGeometry(1, 0);
+  for (let i = 0; i < 25; i++) {
+    const angle = (i / 25) * Math.PI * 2;
+    const r = 2.2 + Math.random() * 2;
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xff8800,
+      emissive: 0xff8800,
+      emissiveIntensity: 1.2,
+      transparent: true,
+      opacity: 0.45,
+    });
+    const mesh = new THREE.Mesh(particleGeo, mat);
+    const s = 0.03 + Math.random() * 0.05;
+    mesh.scale.set(s, s, s);
+    mesh.position.set(Math.cos(angle) * r, (Math.random() - 0.5) * 3, -1 + Math.sin(angle) * r * 0.4);
+    mesh.userData = { speed: 0.2 + Math.random() * 0.4, baseY: mesh.position.y, baseX: mesh.position.x };
+    scene.add(mesh);
+    particles.push(mesh);
+  }
+
+  // Pet plane
+  const petMaterial = new THREE.MeshStandardMaterial({
+    transparent: true,
+    opacity: 1,
+    emissive: 0xff8800,
+    emissiveIntensity: 0.3,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const petMesh = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), petMaterial);
+  scene.add(petMesh);
+
+  // Offscreen canvas for ASCII art texture
+  const offscreen = document.createElement('canvas');
+  const offCtx = offscreen.getContext('2d');
+  let texture = new THREE.CanvasTexture(offscreen);
+
+  function updateTexture() {
+    const p = getPet();
+    const lines = p.asciiArt;
+    const maxLen = Math.max(...lines.map(l => l.length));
+    const fontSize = 20;
+    const lh = fontSize * 1.3;
+    const pad = 40;
+
+    offscreen.width = maxLen * fontSize * 0.6 + pad * 2;
+    offscreen.height = lines.length * lh + pad * 2;
+
+    offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
+
+    // Glow layer
+    offCtx.save();
+    offCtx.font = 'bold ' + fontSize + 'px "Courier New", "JetBrains Mono", monospace';
+    offCtx.textBaseline = 'top';
+    offCtx.shadowColor = p.glow;
+    offCtx.shadowBlur = 30;
+    offCtx.fillStyle = p.color;
+    lines.forEach((line, i) => offCtx.fillText(line, pad, pad + i * lh));
+    offCtx.restore();
+
+    // Sharp white layer
+    offCtx.save();
+    offCtx.font = 'bold ' + fontSize + 'px "Courier New", "JetBrains Mono", monospace';
+    offCtx.textBaseline = 'top';
+    offCtx.fillStyle = '#ffffff';
+    offCtx.globalAlpha = 0.82;
+    lines.forEach((line, i) => offCtx.fillText(line, pad, pad + i * lh));
+    offCtx.restore();
+
+    texture.dispose();
+    texture = new THREE.CanvasTexture(offscreen);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    petMaterial.map = texture;
+    petMaterial.emissive = new THREE.Color(p.glow);
+    petMaterial.needsUpdate = true;
+
+    // Resize plane to match aspect
+    const aspect = offscreen.width / offscreen.height;
+    const h = 2.8;
+    petMesh.geometry.dispose();
+    petMesh.geometry = new THREE.PlaneGeometry(h * aspect, h);
+
+    // Update lights
+    mainLight.color.set(p.glow);
+    particles.forEach(pt => { pt.material.color.set(p.glow); pt.material.emissive.set(p.glow); });
+
+    // Update background
+    const moodBgs = { ecstatic: 0x06020e, happy: 0x020606, neutral: 0x030305, sad: 0x020206, critical: 0x060202 };
+    scene.background.set(moodBgs[p.mood] || 0x030305);
+    scene.fog.color.set(moodBgs[p.mood] || 0x030305);
+  }
+
+  // Resize
+  function resize() {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (canvas.width !== w || canvas.height !== h) {
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+  }
+
+  // Animate
+  let prevPulse = 0;
+  function animate(time) {
+    requestAnimationFrame(animate);
+    resize();
+
+    const t = time * 0.001;
+    const p = getPet();
+
+    // Float
+    petMesh.position.y = Math.sin(t * 1.2) * 0.1;
+    petMesh.position.x = Math.cos(t * 0.8) * 0.05;
+    petMesh.rotation.y = Math.sin(t * 0.4) * 0.03;
+    petMesh.rotation.z = Math.sin(t * 0.6 + 1) * 0.015;
+
+    // Action pulse
+    if (actionPulse !== prevPulse) {
+      const elapsed = (Date.now() - actionPulse) / 1000;
+      if (elapsed < 0.6) {
+        const s = 1 + Math.sin(elapsed * 15) * 0.04 * (1 - elapsed / 0.6);
+        petMesh.scale.set(s, s, s);
+      } else {
+        petMesh.scale.set(1, 1, 1);
+        prevPulse = actionPulse;
+      }
+    }
+
+    // Mood light intensity
+    const intensities = { ecstatic: 3.2, happy: 2.0, neutral: 1.2, sad: 0.6, critical: 0.3 };
+    mainLight.intensity = intensities[p.mood] + Math.sin(t * 2) * 0.2;
+    petMaterial.emissiveIntensity = { ecstatic: 0.35, happy: 0.25, neutral: 0.15, sad: 0.08, critical: 0.04 }[p.mood] || 0.15;
+
+    // Particles
+    particles.forEach(pt => {
+      const d = pt.userData;
+      const tt = t * d.speed;
+      pt.position.y = d.baseY + Math.sin(tt + d.baseX) * 0.5;
+      pt.position.x = d.baseX + Math.cos(tt * 0.6) * 0.3;
+      pt.rotation.x = tt * 0.4;
+      pt.rotation.z = tt * 0.25;
+      const s = 0.8 + Math.sin(tt * 2) * 0.2;
+      pt.scale.set(s, s, s);
+    });
+
+    if (needsTextureUpdate) { updateTexture(); needsTextureUpdate = false; }
+
+    renderer.render(scene, camera);
+  }
+
+  updateTexture();
+  requestAnimationFrame(animate);
+})();
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+updateUI();
+updateSessionStats();
+</script>
+</body>
+</html>
